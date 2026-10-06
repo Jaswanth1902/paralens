@@ -1,18 +1,27 @@
-# HyperIndex configuration for ParaLens on Monad Testnet
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
 name: paralens-monad-contention-indexer
 description: Real-time Storage Contention & Transaction Indexer for Monad Parallel EVM
+ecosystem: evm
 
-networks:
+field_selection:
+  transaction_fields:
+    - hash
+  block_fields:
+    - timestamp
+
+contracts:
+  - name: MonadVault
+    abi_file_path: abis/MonadVault.json
+    events:
+      - event: "Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares)"
+      - event: "Transfer(address indexed from, address indexed to, uint256 value)"
+
+chains:
   - id: 10143
-    rpc_config:
-      url: https://testnet-rpc.monad.xyz
     start_block: 0
+    rpc:
+      - url: https://testnet-rpc.monad.xyz
     contracts:
       - name: MonadVault
-        abi_file_path: abis/MonadVault.json
         address:
           - "0x1111111111111111111111111111111111111111"
-        handler: src/EventHandlers.ts
-        events:
-          - event: Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares)
-          - event: Transfer(address indexed from, address indexed to, uint256 value)
