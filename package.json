@@ -6,6 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
+    "codegen": "envio codegen",
     "test": "node --import tsx --test test/**/*.test.ts",
     "build": "tsc",
     "lint": "node scripts/security_lint.js"
@@ -28,6 +29,7 @@
     "@envio-dev/hypersync-client": "^1.4.1",
     "@envio-dev/hypersync-client-win32-x64-msvc": "^1.0.0",
     "@solidity-parser/parser": "^0.20.2",
+    "envio": "^3.14.0",
     "js-sha3": "^0.13.0"
   },
   "devDependencies": {

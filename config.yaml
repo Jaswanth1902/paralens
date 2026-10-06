@@ -9,6 +9,7 @@ networks:
     start_block: 0
     contracts:
       - name: MonadVault
+        abi_file_path: abis/MonadVault.json
         address:
           - "0x1111111111111111111111111111111111111111"
         handler: src/EventHandlers.ts
