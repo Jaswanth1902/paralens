@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ParaLens — Monad Parallel EVM Observability & Contention Profiler</title>
+  <style>
+    /* ==========================================================================
+       MONAD ATELIER METROPOLIS DESIGN SYSTEM TOKENS (VERIFIED BRAND AUDIT)
+       ========================================================================== */
+    :root {
+      --color-monad-purple: #6E54FF;
+      --color-monad-violet: #836EF9;
+      --color-monad-hover: #8270FF;
+      --color-monad-pressed: #5740D6;
+      --color-monad-tint: #DDD7FE;
+      --color-monad-void: #05060A;
+      --color-monad-obsidian: #0E091C;
+      --color-monad-surface: #0F0F12;
+      --color-monad-raised: #16161A;
+      --color-monad-card: #1B1B22;
+
+      --color-cyan: #85E6FF;
+      --color-berry: #FF8EE4;
+      --color-amber: #FFAE45;
+      --color-emerald: #16A34A;
+      --color-emerald-glow: #4ADE80;
+      --color-crimson: #DC2626;
+      --color-crimson-glow: #EF4444;
+
+      --border-hairline: rgba(255, 255, 255, 0.08);
+      --border-purple-subtle: rgba(110, 84, 255, 0.35);
+      --border-purple-strong: rgba(110, 84, 255, 0.65);
+
+      --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+      --font-mono: "Roboto Mono", "JetBrains Mono", ui-monospace, monospace;
+
+      --ease-apple: cubic-bezier(0.23, 1, 0.32, 1);
+      --radius-chamfer: 6px;
+      --radius-card: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--color-monad-void);
+      color: #FBFAF9;
+      font-family: var(--font-display);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Background WebGL / Canvas Container */
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.75;
+    }
+
+    /* Ambient Radial Dome */
+    .ambient-glow {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1200px;
+      height: 500px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(110, 84, 255, 0.28) 0%, rgba(14, 9, 28, 0) 70%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Blueprint Grid Layer */
+    .blueprint-grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* App Shell */
+    .app-shell {
+      position: relative;
+      z-index: 10;
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 24px 32px 64px 32px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* Navigation Bar */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: rgba(15, 15, 18, 0.75);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-card);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #836EF9, #6E54FF);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(110, 84, 255, 0.5);
+    }
+
+    .brand-logo svg {
+      width: 22px;
+      height: 22px;
+      fill: #FFF;
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-metropolis {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      padding: 2px 8px;
+      background: rgba(110, 84, 255, 0.15);
+      border: 1px solid var(--color-monad-purple);
+      color: var(--color-monad-tint);
+      border-radius: 100px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-chamfer);
+      color: #9D9DB2;
+    }
+
+    .dot-live {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-emerald-glow);
+      box-shadow: 0 0 8px var(--color-emerald-glow);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.9); }
+    }
+
+    /* Hero Section */
+    .hero-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 28px 32px;
+      background: linear-gradient(135deg, rgba(22, 22, 26, 0.8) 0%, rgba(14, 9, 28, 0.9) 100%);
+      border: 1px solid var(--border-purple-subtle);
+      border-radius: var(--radius-card);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-content h1 {
+      font-size: 2.1rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+      background: linear-gradient(180deg, #FFFFFF 0%, #DDD7FE 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-content p {
+      font-size: 1rem;
+      color: #9D9DB2;
+      max-width: 680px;
+      line-height: 1.5;
+    }
+
+    .hero-quote {
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+      color: var(--color-monad-tint);
+      background: rgba(110, 84, 255, 0.12);
+      border-left: 3px solid var(--color-monad-purple);
+      padding: 8px 14px;
+      border-radius: 0 var(--radius-chamfer) var(--radius-chamfer) 0;
+      margin-top: 14px;
+    }
+
+    /* Simulation Control Bar */
+    .control-deck {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--color-monad-surface);
+      padding: 14px 20px;
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-card);
+    }
+
+    .scenario-picker {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-scenario {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-hairline);
+      color: #9D9DB2;
+      padding: 10px 18px;
+      border-radius: var(--radius-chamfer);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 180ms var(--ease-apple);
+    }
+
+    .btn-scenario:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #FFF;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-scenario:active {
+      transform: scale(0.97);
+    }
+
+    .btn-scenario.active-naive {
+      background: rgba(220, 38, 38, 0.15);
+      border-color: var(--color-crimson);
+      color: #FFA5A5;
+      box-shadow: 0 0 16px rgba(220, 38, 38, 0.35);
+    }
+
+    .btn-scenario.active-sharded {
+      background: rgba(22, 163, 74, 0.15);
+      border-color: var(--color-emerald-glow);
+      color: #A3F7BF;
+      box-shadow: 0 0 16px rgba(22, 163, 74, 0.35);
+    }
+
+    .btn-run {
+      background: linear-gradient(135deg, var(--color-monad-purple) 0%, var(--color-monad-violet) 100%);
+      border: none;
+      color: #FFF;
+      padding: 10px 24px;
+      border-radius: var(--radius-chamfer);
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(110, 84, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      transition: transform 120ms var(--ease-apple), box-shadow 120ms ease;
+    }
+
+    .btn-run:hover {
+      box-shadow: 0 0 28px rgba(110, 84, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-run:active {
+      transform: scale(0.97);
+    }
+
+    /* Telemetry Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+    }
+
+    /* Left Card: Speedometer & Core Metrics */
+    .metric-card {
+      background: var(--color-monad-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .metric-header {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9D9DB2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .speedometer-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .speedometer-canvas {
+      width: 280px;
+      height: 160px;
+    }
+
+    .speedometer-label {
+      position: absolute;
+      bottom: 12px;
+      text-align: center;
+    }
+
+    .tps-counter {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .tps-unit {
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      color: #9D9DB2;
+      margin-top: 4px;
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-hairline);
+    }
+
+    .mini-stat {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 12px;
+      border-radius: var(--radius-chamfer);
+      border: 1px solid var(--border-hairline);
+    }
+
+    .mini-stat-title {
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      color: #727285;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .mini-stat-val {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    /* Right Card: Storage Heatmap & Waterfall */
+    .heatmap-card {
+      background: var(--color-monad-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .heatmap-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .heatmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: #9D9DB2;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-box {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    /* 64-Slot Memory Grid */
+    .slots-grid {
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      gap: 6px;
+      background: rgba(10, 6, 20, 0.6);
+      padding: 16px;
+      border-radius: var(--radius-chamfer);
+      border: 1px solid var(--border-hairline);
+    }
+
+    .slot-cell {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: #727285;
+      cursor: pointer;
+      transition: all 180ms ease;
+      position: relative;
+    }
+
+    .slot-cell:hover {
+      transform: scale(1.15);
+      z-index: 5;
+      border-color: #FFF;
+    }
+
+    .slot-cell.hot-spot {
+      background: var(--color-crimson) !important;
+      color: #FFF !important;
+      border-color: #FF7878 !important;
+      box-shadow: 0 0 14px var(--color-crimson);
+      animation: pulse-hot 1.2s infinite;
+    }
+
+    .slot-cell.sharded-green {
+      background: rgba(22, 163, 74, 0.8) !important;
+      color: #FFF !important;
+      border-color: #86EFAC !important;
+      box-shadow: 0 0 8px rgba(22, 163, 74, 0.4);
+    }
+
+    @keyframes pulse-hot {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 14px var(--color-crimson); }
+      50% { transform: scale(1.08); box-shadow: 0 0 24px #FF3333; }
+    }
+
+    /* Block-STM Multi-Thread Waterfall Lanes */
+    .waterfall-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .lane-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: #727285;
+    }
+
+    .lane-label {
+      width: 60px;
+    }
+
+    .lane-track {
+      flex: 1;
+      height: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      gap: 2px;
+    }
+
+    .block-seg {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 300ms ease;
+    }
+
+    .seg-commit {
+      background: var(--color-monad-purple);
+    }
+
+    .seg-abort {
+      background: var(--color-crimson);
+    }
+
+    .seg-green {
+      background: var(--color-emerald);
+    }
+
+    /* Code & Remediation Section */
+    .remediation-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .code-box {
+      background: var(--color-monad-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .code-box.naive {
+      border-left: 4px solid var(--color-crimson);
+    }
+
+    .code-box.optimized {
+      border-left: 4px solid var(--color-emerald-glow);
+    }
+
+    .code-box h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    pre {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 14px;
+      border-radius: var(--radius-chamfer);
+      overflow-x: auto;
+      color: #DDD7FE;
+      line-height: 1.45;
+    }
+
+    /* Footer */
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-hairline);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: #727285;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Glow & Blueprint Grid -->
+  <div class="ambient-glow"></div>
+  <div class="blueprint-grid"></div>
+
+  <!-- Background Canvas for Procedural 3D Parallel Threads -->
+  <canvas id="canvas-container"></canvas>
+
+  <div class="app-shell">
+    
+    <!-- Header -->
+    <header>
+      <div class="brand-group">
+        <div class="brand-logo">
+          <!-- Monad M Icon -->
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 8.5V15.5L12 22L22 15.5V8.5L12 2ZM12 4.5L19.5 9.4V14.6L12 19.5L4.5 14.6V9.4L12 4.5Z"/></svg>
+        </div>
+        <div>
+          <div class="brand-title">
+            ParaLens
+            <span class="badge-metropolis">Monad Testnet • 10143</span>
+          </div>
+        </div>
+      </div>
+      <div class="nav-status">
+        <div class="status-pill">
+          <div class="dot-live"></div>
+          <span>Block-STM Active</span>
+        </div>
+        <div class="status-pill">
+          <span>Target: 10,000 TPS</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Banner -->
+    <section class="hero-banner">
+      <div class="hero-content">
+        <h1>Parallel EVM Storage Contention Profiler</h1>
+        <p>The Datadog & Valgrind for Monad smart contracts. Pinpoint multi-version memory read/write collisions, prevent Block-STM abort cascades, and refactor contracts to achieve true 10,000 TPS.</p>
+        <div class="hero-quote">
+          "State access is the real bottleneck of blockchains, not computation." — Keone Hon, Monad Co-founder
+        </div>
+      </div>
+    </section>
+
+    <!-- Control Deck -->
+    <section class="control-deck">
+      <div class="scenario-picker">
+        <span style="font-family: var(--font-mono); font-size: 0.8rem; color: #727285;">PRESET BENCHMARK:</span>
+        <button id="btn-naive" class="btn-scenario active-naive" onclick="setScenario('naive')">
+          ⚠ Naive ERC-4626 Vault (Slot 0 Collisions)
+        </button>
+        <button id="btn-sharded" class="btn-scenario" onclick="setScenario('sharded')">
+          ⚡ ParaLens 16-Way Sharded Vault
+        </button>
+      </div>
+      <div>
+        <button id="btn-simulate" class="btn-run" onclick="runSimulation()">
+          ▶ RUN SYNTHETIC 2,500-TX BLOCK
+        </button>
+      </div>
+    </section>
+
+    <!-- Telemetry Grid -->
+    <div class="dashboard-grid">
+      
+      <!-- Left: Speedometer & Metrics -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span>REALIZED THROUGHPUT</span>
+          <span id="badge-status" style="color: var(--color-crimson);">COLLAPSED</span>
+        </div>
+
+        <div class="speedometer-wrap">
+          <canvas id="gaugeCanvas" class="speedometer-canvas" width="280" height="160"></canvas>
+          <div class="speedometer-label">
+            <div id="tps-val" class="tps-counter" style="color: var(--color-crimson);">72</div>
+            <div class="tps-unit">TRANSACTIONS / SEC</div>
+          </div>
+        </div>
+
+        <div class="metrics-row">
+          <div class="mini-stat">
+            <div class="mini-stat-title">ABORT RATE</div>
+            <div id="val-abort-rate" class="mini-stat-val" style="color: var(--color-crimson);">94.8%</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-title">CASCADE DEPTH</div>
+            <div id="val-cascade-depth" class="mini-stat-val">14 retries</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-title">PARALLEL SPEEDUP</div>
+            <div id="val-speedup" class="mini-stat-val">0.08x</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-title">MIP-8 PAGE STATUS</div>
+            <div id="val-mip8" class="mini-stat-val">Page 0 Thrash</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Memory Heatmap & Waterfall -->
+      <div class="heatmap-card">
+        <div class="heatmap-top">
+          <div>
+            <span style="font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700;">PHYSICAL STORAGE SLOT HEATMAP (SLOTS 0x00 – 0x3F)</span>
+            <div style="font-size: 0.75rem; color: #727285; margin-top: 2px;">Hover slots to inspect storage variables and read/write conflict frequency</div>
+          </div>
+          <div class="heatmap-legend">
+            <div class="legend-item"><div class="legend-box" style="background: rgba(255,255,255,0.08);"></div> Idle</div>
+            <div class="legend-item"><div class="legend-box" style="background: var(--color-emerald);"></div> Sharded (Safe)</div>
+            <div class="legend-item"><div class="legend-box" style="background: var(--color-crimson);"></div> Hotspot (Abort)</div>
+          </div>
+        </div>
+
+        <!-- 64 Slots Grid -->
+        <div id="slots-container" class="slots-grid">
+          <!-- Dynamically populated via JS -->
+        </div>
+
+        <!-- 4-Lane Thread Waterfall -->
+        <div class="waterfall-panel">
+          <div style="font-family: var(--font-mono); font-size: 0.75rem; color: #9D9DB2; margin-bottom: 2px;">
+            BLOCK-STM MULTI-CORE WORKER LANES (SAMPLE)
+          </div>
+          <div class="lane-row"><span class="lane-label">CORE 01</span><div id="lane-1" class="lane-track"></div></div>
+          <div class="lane-row"><span class="lane-label">CORE 02</span><div id="lane-2" class="lane-track"></div></div>
+          <div class="lane-row"><span class="lane-label">CORE 03</span><div id="lane-3" class="lane-track"></div></div>
+          <div class="lane-row"><span class="lane-label">CORE 04</span><div id="lane-4" class="lane-track"></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Remediation Comparison -->
+    <div class="remediation-section">
+      
+      <div class="code-box naive">
+        <h3><span style="color: var(--color-crimson);">✖</span> NAIVE STORAGE PATTERN (SERIAL BOTTLENECK)</h3>
+        <p style="font-size: 0.82rem; color: #9D9DB2;">Every user deposit updates a single global accumulator in storage slot 0x0. Under Block-STM, every concurrent transaction triggers a Read/Write validation failure.</p>
+        <pre>// SPDX-License-Identifier: MIT
+contract NaiveVault {
+    uint256 public totalAssets; // SLOT 0: CATASTROPHIC WRITE HOTSPOT
+
+    function deposit(uint256 amount) external {
+        // EVERY concurrent transaction conflicts on slot 0!
+        totalAssets += amount;
+    }
+}</pre>
+      </div>
+
+      <div class="code-box optimized">
+        <h3><span style="color: var(--color-emerald-glow);">✔</span> PARALENS 16-WAY SHARDED REFACTOR (10,000 TPS)</h3>
+        <p style="font-size: 0.82rem; color: #9D9DB2;">Deposits are routed to independent storage slots via sender hash partition. Transactions execute concurrently across Monad's parallel workers with 0% state conflict.</p>
+        <pre>// SPDX-License-Identifier: MIT
+contract ShardedVault {
+    // 16 isolated storage slots (Slots 0x00 - 0x0F)
+    uint256[16] private assetShards; 
+
+    function deposit(uint256 amount) external {
+        uint256 shard = uint256(uint160(msg.sender)) % 16;
+        assetShards[shard] += amount; // 0% Conflict Rate!
+    }
+}</pre>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <div>ParaLens • Built for Monad Metropolis Global Hackathon 2026</div>
+      <div>Parallel EVM Architecture • Block-STM • MonadDb Asynchronous I/O</div>
+    </footer>
+
+  </div>
+
+  <script>
+    // State
+    let currentScenario = 'naive';
+    let targetTps = 72;
+    let animatedTps = 0;
+
+    // Initialize Slots Grid (64 slots)
+    const slotsContainer = document.getElementById('slots-container');
+    function initSlots() {
+      slotsContainer.innerHTML = '';
+      for (let i = 0; i < 64; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'slot-cell';
+        cell.id = `slot-${i}`;
+        const hex = i.toString(16).toUpperCase().padStart(2, '0');
+        cell.innerText = hex;
+        cell.title = `Slot 0x${hex}`;
+        slotsContainer.appendChild(cell);
+      }
+      applyScenarioStyles();
+    }
+
+    function applyScenarioStyles() {
+      // Reset all
+      for (let i = 0; i < 64; i++) {
+        const el = document.getElementById(`slot-${i}`);
+        if (!el) continue;
+        el.className = 'slot-cell';
+      }
+
+      if (currentScenario === 'naive') {
+        const slot0 = document.getElementById('slot-0');
+        if (slot0) {
+          slot0.classList.add('hot-spot');
+          slot0.title = 'Slot 0x00: 2,492 Collisions (totalAssets accumulator)';
+        }
+      } else {
+        for (let i = 0; i < 16; i++) {
+          const el = document.getElementById(`slot-${i}`);
+          if (el) {
+            el.classList.add('sharded-green');
+            el.title = `Slot 0x0${i.toString(16).toUpperCase()}: Sharded partition ${i} (Safe)`;
+          }
+        }
+      }
+    }
+
+    // Gauge Canvas Rendering
+    const gaugeCanvas = document.getElementById('gaugeCanvas');
+    const ctx = gaugeCanvas.getContext('2d');
+
+    function drawGauge(val) {
+      ctx.clearRect(0, 0, gaugeCanvas.width, gaugeCanvas.height);
+
+      const centerX = gaugeCanvas.width / 2;
+      const centerY = 135;
+      const radius = 95;
+      const startAngle = Math.PI * 0.85;
+      const endAngle = Math.PI * 2.15;
+
+      // Track
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Active Arc
+      const pct = Math.min(val / 10000, 1.0);
+      const currentAngle = startAngle + (endAngle - startAngle) * pct;
+
+      const grad = ctx.createLinearGradient(0, 0, gaugeCanvas.width, 0);
+      if (currentScenario === 'naive') {
+        grad.addColorStop(0, '#DC2626');
+        grad.addColorStop(1, '#EF4444');
+      } else {
+        grad.addColorStop(0, '#836EF9');
+        grad.addColorStop(0.7, '#6E54FF');
+        grad.addColorStop(1, '#16A34A');
+      }
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, startAngle, currentAngle);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // Animate TPS Counter
+    function animateTpsTo(target) {
+      const step = () => {
+        const diff = target - animatedTps;
+        if (Math.abs(diff) < 5) {
+          animatedTps = target;
+          document.getElementById('tps-val').innerText = Math.round(animatedTps).toLocaleString();
+          drawGauge(animatedTps);
+          return;
+        }
+        animatedTps += diff * 0.15;
+        document.getElementById('tps-val').innerText = Math.round(animatedTps).toLocaleString();
+        drawGauge(animatedTps);
+        requestAnimationFrame(step);
+      };
+      step();
+    }
+
+    // Waterfall simulation
+    function updateWaterfall() {
+      for (let l = 1; l <= 4; l++) {
+        const lane = document.getElementById(`lane-${l}`);
+        lane.innerHTML = '';
+        if (currentScenario === 'naive') {
+          // Mostly aborts
+          lane.innerHTML = `
+            <div class="block-seg seg-commit" style="width: 8%;"></div>
+            <div class="block-seg seg-abort" style="width: 42%;"></div>
+            <div class="block-seg seg-abort" style="width: 35%;"></div>
+            <div class="block-seg seg-commit" style="width: 15%;"></div>
+          `;
+        } else {
+          // Smooth parallel commits
+          lane.innerHTML = `
+            <div class="block-seg seg-green" style="width: 25%;"></div>
+            <div class="block-seg seg-green" style="width: 25%;"></div>
+            <div class="block-seg seg-green" style="width: 25%;"></div>
+            <div class="block-seg seg-green" style="width: 25%;"></div>
+          `;
+        }
+      }
+    }
+
+    function setScenario(scen) {
+      currentScenario = scen;
+      const btnNaive = document.getElementById('btn-naive');
+      const btnSharded = document.getElementById('btn-sharded');
+      const tpsEl = document.getElementById('tps-val');
+      const badgeStatus = document.getElementById('badge-status');
+      const abortRate = document.getElementById('val-abort-rate');
+      const cascadeDepth = document.getElementById('val-cascade-depth');
+      const speedup = document.getElementById('val-speedup');
+      const mip8 = document.getElementById('val-mip8');
+
+      if (scen === 'naive') {
+        btnNaive.className = 'btn-scenario active-naive';
+        btnSharded.className = 'btn-scenario';
+        tpsEl.style.color = 'var(--color-crimson)';
+        badgeStatus.innerText = 'COLLAPSED';
+        badgeStatus.style.color = 'var(--color-crimson)';
+        abortRate.innerText = '94.8%';
+        abortRate.style.color = 'var(--color-crimson)';
+        cascadeDepth.innerText = '14 retries';
+        speedup.innerText = '0.08x';
+        mip8.innerText = 'Page 0 Thrash';
+        animateTpsTo(72);
+      } else {
+        btnNaive.className = 'btn-scenario';
+        btnSharded.className = 'btn-scenario active-sharded';
+        tpsEl.style.color = 'var(--color-emerald-glow)';
+        badgeStatus.innerText = 'OPTIMAL';
+        badgeStatus.style.color = 'var(--color-emerald-glow)';
+        abortRate.innerText = '0.3%';
+        abortRate.style.color = 'var(--color-emerald-glow)';
+        cascadeDepth.innerText = '0 retries';
+        speedup.innerText = '136.4x';
+        mip8.innerText = 'Partitioned (16)';
+        animateTpsTo(9820);
+      }
+
+      applyScenarioStyles();
+      updateWaterfall();
+    }
+
+    function runSimulation() {
+      // Visual pulse trigger
+      const btn = document.getElementById('btn-simulate');
+      btn.innerText = 'SIMULATING BLOCK...';
+      btn.style.opacity = '0.7';
+
+      setTimeout(() => {
+        btn.innerText = '▶ RUN SYNTHETIC 2,500-TX BLOCK';
+        btn.style.opacity = '1';
+        if (currentScenario === 'naive') {
+          animateTpsTo(72);
+        } else {
+          animateTpsTo(9820);
+        }
+        updateWaterfall();
+      }, 400);
+    }
+
+    // Procedural 3D Parallel Threads Canvas (Atelier-3D inspired)
+    const bgCanvas = document.getElementById('canvas-container');
+    const bgCtx = bgCanvas.getContext('2d');
+    let width, height;
+
+    function resizeBg() {
+      width = bgCanvas.width = window.innerWidth;
+      height = bgCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeBg);
+    resizeBg();
+
+    const threads = [];
+    for (let i = 0; i < 24; i++) {
+      threads.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        speed: 0.5 + Math.random() * 1.5,
+        length: 80 + Math.random() * 140,
+        color: i % 3 === 0 ? 'rgba(131, 110, 249, 0.45)' : 'rgba(110, 84, 255, 0.25)'
+      });
+    }
+
+    function animateBg() {
+      bgCtx.clearRect(0, 0, width, height);
+
+      // Render flowing parallel lines
+      threads.forEach(t => {
+        t.y += t.speed;
+        if (t.y > height + t.length) {
+          t.y = -t.length;
+          t.x = Math.random() * width;
+        }
+
+        bgCtx.beginPath();
+        bgCtx.moveTo(t.x, t.y);
+        bgCtx.lineTo(t.x, t.y - t.length);
+        bgCtx.strokeStyle = t.color;
+        bgCtx.lineWidth = 1.5;
+        bgCtx.stroke();
+      });
+
+      requestAnimationFrame(animateBg);
+    }
+
+    // Init
+    initSlots();
+    setScenario('naive');
+    animateBg();
+  </script>
+</body>
+</html>

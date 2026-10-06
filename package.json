@@ -25,7 +25,10 @@
   "author": "Jaswanth",
   "license": "Apache-2.0",
   "dependencies": {
-    "@solidity-parser/parser": "^0.18.2"
+    "@envio-dev/hypersync-client": "^1.4.1",
+    "@envio-dev/hypersync-client-win32-x64-msvc": "^1.0.0",
+    "@solidity-parser/parser": "^0.20.2",
+    "js-sha3": "^0.13.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

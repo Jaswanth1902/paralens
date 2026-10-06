@@ -1,0 +1,17 @@
+type ContractContentionStat @entity {
+  id: ID! # Contract Address
+  totalTransactions: BigInt!
+  totalDeposits: BigInt!
+  estimatedContentionRate: Float!
+  congestedSlot: String!
+  lastUpdatedBlock: BigInt!
+}
+
+type StorageSlotAccess @entity {
+  id: ID! # txHash-logIndex
+  contract: String!
+  caller: String!
+  slot: String!
+  isCollision: Boolean!
+  timestamp: BigInt!
+}

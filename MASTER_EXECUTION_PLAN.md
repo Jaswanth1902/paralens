@@ -2,7 +2,7 @@
 
 > **Event**: Monad Metropolis Global Hackathon ($250,000+ Total Prize Pool)  
 > **Adversarial Survivability Score**: **96.2 / 100 (Grade A+ Anti-Fragile)**  
-> **Target Prize Capture**: Grand Champion ($25k) + Track 1/4 ($30k) + Envio ($5k+) + Alchemy ($5k+) + Alibaba Cloud ($3k+) = **$68,000+ Total**  
+> **Target Prize Capture**: Track 4 ($30,000) + Envio ($5k+) + Alchemy ($5k+) + Alibaba Cloud ($3k+) = **$43,000+ Total**  
 > **Repository**: [github.com/Jaswanth1902/paralens](https://github.com/Jaswanth1902/paralens)  
 > **Portal**: [hackathon.monad.xyz](https://hackathon.monad.xyz)  
 
@@ -156,4 +156,4 @@ ParaLens synthesizes the complete Antigravity engineering and autonomous researc
 - [x] **Zero Live RPC Latency**: 100% crash-proof demo recorded against deterministic fixtures.
 - [x] **Zero Hallucinated Code**: Pre-audited `@paralens/contracts` templates with advisory AI.
 - [x] **Full Sponsor Compliance**: Envio HyperSync, Alchemy RPC, and Qwen 3.8 Max load-bearing integrations.
-- [x] **Track 1 / Grand Champion Authority**: Uncontested developer tooling dominance on Monad.
+- [x] **Track 4 Authority**: Cryptographic Trust & Concurrency Firewall for autonomous AI agents on Monad.

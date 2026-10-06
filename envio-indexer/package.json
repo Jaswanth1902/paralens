@@ -1,0 +1,17 @@
+{
+  "name": "paralens-monad-indexer",
+  "version": "1.0.0",
+  "description": "HyperIndex for ParaLens on Monad Testnet",
+  "scripts": {
+    "codegen": "envio codegen",
+    "build": "envio build",
+    "start": "envio start"
+  },
+  "dependencies": {
+    "envio": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
