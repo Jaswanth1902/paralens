@@ -1,0 +1,17 @@
+# HyperIndex configuration for ParaLens on Monad Testnet
+name: paralens-monad-contention-indexer
+description: Real-time Storage Contention & Transaction Indexer for Monad Parallel EVM
+
+networks:
+  - id: 10143
+    rpc_config:
+      url: https://testnet-rpc.monad.xyz
+    start_block: 0
+    contracts:
+      - name: MonadVault
+        address:
+          - "0x1111111111111111111111111111111111111111"
+        handler: src/EventHandlers.ts
+        events:
+          - event: Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares)
+          - event: Transfer(address indexed from, address indexed to, uint256 value)
